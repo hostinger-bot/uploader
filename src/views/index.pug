@@ -1,0 +1,229 @@
+doctype html
+html(lang="en")
+  head
+    meta(charset="UTF-8")
+    meta(name="viewport", content="width=device-width, initial-scale=1.0")
+    title FileShare - Secure File Uploader
+    link(rel="icon", href="/imageicon.png", type="image/png")
+    script(src="https://cdn.tailwindcss.com")
+    link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css")
+    style.
+      .highlight-url, .highlight-url-secondary {
+        transition: background-color 0.2s, border-color 0.2s;
+      }
+      .highlight-url:hover, .highlight-url-secondary:hover {
+        background-color: #f3f4f6;
+        border-color: #2563eb;
+      }
+      .highlight-url:focus, .highlight-url-secondary:focus {
+        border-color: #2563eb;
+        outline: none;
+      }
+      .copy-icon {
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+      .copy-icon:hover {
+        color: #2563eb;
+      }
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      table {
+        min-width: 100%;
+      }
+      th, td {
+        white-space: nowrap;
+      }
+      .filename-cell {
+        max-width: 200px;
+      }
+      @media (max-width: 640px) {
+        .highlight-url, .highlight-url-secondary {
+          font-size: 12px;
+        }
+        th, td {
+          padding: 8px;
+          font-size: 12px;
+        }
+        .filename-cell {
+          max-width: 120px;
+        }
+        .copy-icon {
+          font-size: 14px;
+        }
+      }
+    script.
+      // Initialize copy icon event listeners
+      function initCopyIcons() {
+        document.querySelectorAll('.copy-icon').forEach(icon => {
+          icon.removeEventListener('click', handleCopy);
+          icon.addEventListener('click', handleCopy);
+        });
+      }
+
+      function handleCopy(e) {
+        const urlInput = e.target.closest('.flex').querySelector('input');
+        const url = urlInput.value;
+        try {
+          navigator.clipboard.writeText(url);
+          alert('URL copied to clipboard!');
+        } catch (err) {
+          alert('Failed to copy URL. Please try again.');
+        }
+      }
+
+      // Handle form submission with AJAX to prevent page reload
+      document.addEventListener('DOMContentLoaded', () => {
+        const form = document.querySelector('form');
+        const fileTableBody = document.querySelector('#file-table-body');
+        const secondaryUrlContainer = document.querySelector('#secondary-url-container');
+        const successMessage = document.querySelector('#success-message');
+        const errorMessage = document.querySelector('#error-message');
+
+        if (form) {
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const fileInput = form.querySelector('input[type="file"]');
+            if (!fileInput.files || fileInput.files.length === 0) {
+              alert('No files selected. Please select at least one file to upload.');
+              return;
+            }
+
+            try {
+              const formData = new FormData(form);
+              const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData,
+              });
+
+              const html = await response.text();
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(html, 'text/html');
+
+              const newSuccess = doc.querySelector('#success-message')?.textContent;
+              const newError = doc.querySelector('#error-message')?.textContent;
+              const newFiles = Array.from(doc.querySelectorAll('#file-table-body tr')).map(row => ({
+                filename: row.querySelector('.filename-cell')?.textContent,
+                size: row.querySelector('.size-cell')?.textContent,
+                mimetype: row.querySelector('.type-cell')?.textContent,
+                url: row.querySelector('.highlight-url')?.value,
+              }));
+
+              if (newError) {
+                errorMessage.textContent = newError;
+                errorMessage.classList.remove('hidden');
+                successMessage.classList.add('hidden');
+                fileTableBody.innerHTML = '';
+                secondaryUrlContainer.innerHTML = '';
+              } else if (newSuccess) {
+                successMessage.textContent = newSuccess;
+                successMessage.classList.remove('hidden');
+                errorMessage.classList.add('hidden');
+                fileTableBody.innerHTML = newFiles.map(file => `
+                  <tr class="bg-white border-b hover:bg-gray-50">
+                    <td class="px-4 sm:px-6 py-4 font-medium text-gray-900 truncate filename-cell">${file.filename}</td>
+                    <td class="px-4 sm:px-6 py-4 size-cell">${file.size}</td>
+                    <td class="px-4 sm:px-6 py-4 truncate type-cell">${file.mimetype}</td>
+                    <td class="px-4 sm:px-6 py-4">
+                      <div class="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          value="${file.url}"
+                          readonly
+                          class="highlight-url w-full bg-gray-100 p-2 rounded-md border border-gray-300 text-sm truncate cursor-text focus:bg-white"
+                          onclick="this.select()"
+                        >
+                        <i class="copy-icon fas fa-copy text-gray-600 hover:text-blue-600"></i>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('');
+                // Show the last uploaded file's URL in secondary container
+                if (newFiles.length > 0) {
+                  const lastFile = newFiles[newFiles.length - 1];
+                  secondaryUrlContainer.innerHTML = `
+                    <div class="flex items-center space-x-2 mt-4">
+                      <input
+                        type="text"
+                        value="${lastFile.url}"
+                        readonly
+                        class="highlight-url-secondary w-full bg-gray-100 p-2 rounded-md border border-gray-300 text-sm truncate cursor-text focus:bg-white"
+                        onclick="this.select()"
+                      >
+                      <i class="copy-icon fas fa-copy text-gray-600 hover:text-blue-600"></i>
+                    </div>
+                  `;
+                } else {
+                  secondaryUrlContainer.innerHTML = '';
+                }
+                initCopyIcons();
+              }
+            } catch (error) {
+              alert('An error occurred while uploading files. Please try again.');
+              errorMessage.textContent = 'An error occurred while uploading files. Please try again.';
+              errorMessage.classList.remove('hidden');
+              successMessage.classList.add('hidden');
+              fileTableBody.innerHTML = '';
+              secondaryUrlContainer.innerHTML = '';
+            }
+          });
+        }
+
+        initCopyIcons();
+      });
+  body(class="min-h-screen bg-gray-100 flex flex-col font-sans")
+    header(class="bg-blue-600 text-white py-4 shadow-md")
+      div(class="container mx-auto px-4 sm:px-6 lg:px-8")
+        h1(class="text-2xl sm:text-3xl font-bold") FileShare
+        p(class="text-sm sm:text-base mt-1") Secure & Simple File Sharing
+    main(class="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8")
+      div(class="bg-white p-6 sm:p-8 rounded-lg shadow-lg max-w-5xl mx-auto")
+        h2(class="text-xl sm:text-2xl font-semibold mb-6 text-center") Upload Your Files
+        form(action="/api/upload", method="POST", enctype="multipart/form-data", class="space-y-4")
+          input(
+            type="file"
+            name="file"
+            multiple
+            class="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+          )
+          button(
+            type="submit"
+            class="w-full py-2 px-4 rounded-md text-white font-semibold bg-blue-600 hover:bg-blue-700 transition-colors"
+          ) Upload Files
+        p#success-message(class="mt-4 text-green-600 text-center bg-green-50 p-3 rounded-md text-sm sm:text-base hidden") 
+        p#error-message(class="mt-4 text-red-600 text-center bg-red-50 p-3 rounded-md text-sm sm:text-base hidden") 
+        div(class="mt-8")
+          h3(class="text-lg sm:text-xl font-semibold mb-4") Uploaded Files
+          div(class="table-container")
+            table(class="w-full text-sm text-left text-gray-600 border-collapse")
+              thead(class="text-xs text-gray-700 uppercase bg-gray-50")
+                tr
+                  th(class="px-4 sm:px-6 py-3") File Name
+                  th(class="px-4 sm:px-6 py-3") Size
+                  th(class="px-4 sm:px-6 py-3") Type
+                  th(class="px-4 sm:px-6 py-3") Download Link
+              tbody#file-table-body
+                if files && files.length
+                  each file in files
+                    tr(class="bg-white border-b hover:bg-gray-50")
+                      td(class="px-4 sm:px-6 py-4 font-medium text-gray-900 truncate filename-cell") #{file.filename}
+                      td(class="px-4 sm:px-6 py-4 size-cell") #{file.size}
+                      td(class="px-4 sm:px-6 py-4 truncate type-cell") #{file.mimetype}
+                      td(class="px-4 sm:px-6 py-4")
+                        div(class="flex items-center space-x-2")
+                          input(
+                            type="text"
+                            value=file.url
+                            readonly
+                            class="highlight-url w-full bg-gray-100 p-2 rounded-md border border-gray-300 text-sm truncate cursor-text focus:bg-white"
+                            onclick="this.select()"
+                          )
+                          i(class="copy-icon fas fa-copy text-gray-600 hover:text-blue-600")
+          div#secondary-url-container(class="mt-4")
+    footer(class="bg-gray-800 text-white py-4 mt-auto")
+      div(class="container mx-auto px-4 sm:px-6 lg:px-8 text-center")
+        p FileShare v1.0.0 | Built with ❤️ by BOTCAHX
+        p(class="text-sm mt-1") Securely share files up to 50MB
