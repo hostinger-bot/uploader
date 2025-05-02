@@ -60,6 +60,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+app.disable('x-powered-by');
+
 // Routes
 app.use('/', uploadRouter);
 
