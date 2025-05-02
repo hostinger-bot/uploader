@@ -10,7 +10,7 @@
   "keywords": ["uploader-file"],
   "author": "Tio",
   "license": "ISC",
-  "description": "Uplaoder File To Telegram",
+  "description": "Uploader File To Telegram",
   "dependencies": {
     "@types/express": "^5.0.1",
     "@types/express-rate-limit": "^5.1.3",
