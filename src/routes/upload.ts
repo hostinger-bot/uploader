@@ -138,7 +138,7 @@ router.get('/file/:fileId', async (req: Request, res: Response) => {
     const filePath = fileInfoResponse.data.result.file_path;
     const fileUrl = `https://api.telegram.org/file/bot${TELEGRAM_TOKEN}/${filePath}`;
 
-    // Metdata headers
+    // Metadata headers
     const fileMetadataResponse = await axios.get(`${TELEGRAM_API_URL}/getFile?file_id=${fileId}`);
     const fileName = fileMetadataResponse.data.result.file_path.split('/').pop() || 'downloaded_file';
 
