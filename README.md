@@ -90,6 +90,8 @@ Installation
   
 7. Access the application in your browser:
    http://localhost:3000
+   
+9. Type `/start` or something on your bot  
 
 Dependencies
 ------------
