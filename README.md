@@ -4,6 +4,43 @@ Description
 -----------
 FileShare is a simple web application for securely uploading and sharing files using the Telegram Bot API. It allows users to upload files up to 50MB, retrieve download URLs, and copy URLs easily.
 
+### Code Snippet JavaScript 
+```js
+const fetch = require('node-fetch');
+const FormData = require('form-data');
+const { fromBuffer } = require('file-type');
+const cheerio = require('cheerio');
+
+/**
+* Upload image to url
+* Supported mimetype:
+* - `image/jpeg`
+* - `image/jpg`
+* - `image/png`
+* - `video/mp4`
+* - `all files`
+* @param {Buffer} buffer Image Buffer
+*/
+
+module.exports = async (buffer) => {
+  let { ext } = await fromBuffer(buffer);
+  const bodyForm = new FormData();
+  bodyForm.append("file", buffer, "file." + ext);
+  
+  const response = await fetch("https://uptele.onrender.com/api/upload", {
+    method: "POST",
+    body: bodyForm,
+  });
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const resultUrl = $('input.highlight-url').first().val();
+
+  return resultUrl
+}
+```
+
+
 Features
 --------
 - File Upload: Supports all file types up to 50MB.
